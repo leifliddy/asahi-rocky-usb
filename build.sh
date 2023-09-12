@@ -8,8 +8,8 @@ mkosi_rootfs='mkosi.rootfs'
 mnt_usb='mnt_usb'
 
 EFI_UUID='3051-D434'
-BOOT_UUID='a1492762-3fe2-4908-a8b9-118439becd26'
-ROOT_UUID='d747cb2a-aff1-4e47-8a33-c4d9b7475df9'
+BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
+ROOT_UUID='da2cf12a-9480-44cb-ba67-9371ccc88f68'
 
 # uncomment to randomize the UUID's
 #EFI_UUID=$(uuidgen | tr '[a-z]' '[A-Z]' | cut -c1-8 | fold -w4 | paste -sd '-')
