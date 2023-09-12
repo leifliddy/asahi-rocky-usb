@@ -1,0 +1,5 @@
+mkosi.rootfs
+mkosi.rootfs.manifest
+.mkosi*
+mnt_usb
+asahi-linux.repo
