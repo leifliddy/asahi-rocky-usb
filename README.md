@@ -1,6 +1,10 @@
-Creates a Fedora usb drive that will boot on Apple M1/M2 systems.
+Creates a Rock Linux usb drive that will boot on Apple M1/M2 systems.
 
-**Fedora package install:**
+**Fedora package install:**  
+  
+This image was built on a Fedora system
+
+
 ```
 dnf install arch-install-scripts bubblewrap gdisk qemu-user-static pandoc rsync systemd-container
 ```
