@@ -1,4 +1,4 @@
-Creates a Rock Linux usb drive that will boot on Apple M1/M2 systems.
+Creates a Rocky Linux usb drive that will boot on Apple M1/M2 systems.
 
 **Fedora package install:**  
   
