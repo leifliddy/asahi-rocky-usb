@@ -8,11 +8,9 @@ This image was built on a Fedora system
 ```
 dnf install arch-install-scripts bubblewrap gdisk qemu-user-static pandoc rsync systemd-container
 ```
-**note:** ```qemu-user-static``` is only needed if building on a non-```aarch64``` system.
-
-- Until version 15.x is released for Fedora, install mksoi from git:
+**note:** ```qemu-user-static``` is only needed if building on a non-```aarch64``` system.  
+- Until version 15.x is released for Fedora, install mksoi from git:  
 `python3 -m pip install --user git+https://github.com/systemd/mkosi.git@v15.1`
-
 
 To build a minimal Fedora image and install it to a usb drive, simply run:
 ```
