@@ -1,8 +1,8 @@
-Creates a Rocky Linux usb drive that will boot on Apple M1/M2 systems.
+Creates a **Rocky Linux** usb drive that will boot on Apple Silicon systems.
 
 This image was built on a Fedora system   
 
-## Fedora Package Install
+**Fedora Package Install**  
 ```dnf install arch-install-scripts bubblewrap gdisk mkosi pandoc rsync systemd-container```
 
 #### Notes
