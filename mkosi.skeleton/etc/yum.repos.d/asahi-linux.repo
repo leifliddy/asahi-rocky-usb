@@ -1,0 +1,20 @@
+[asahi-linux]
+name=Asahi $releasever - $basearch
+baseurl=https://leifliddy.com/asahi-linux/$releasever/$basearch/
+enabled=1
+skip_if_unavailable=False
+repo_gpgcheck=0
+gpgcheck=1
+gpgkey=https://leifliddy.com/asahi-linux/RPM-GPG-KEY-asahi
+enabled_metadata=1
+priority=1
+
+[asahi-linux-source]
+name=Asahi $releasever - $basearch - Source
+baseurl=https://leifliddy.com/asahi-linux/$releasever/source/SRPMS/
+enabled=0
+skip_if_unavailable=True
+repo_gpgcheck=0
+enabled_metadata=1
+gpgcheck=1
+gpgkey=https://leifliddy.com/asahi-linux/RPM-GPG-KEY-asahi

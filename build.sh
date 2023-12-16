@@ -2,40 +2,39 @@
 
 set -e
 
-# perhaps we should mandate the user specify the device
-#usb_device='/dev/sda'
-mkosi_rootfs='mkosi.rootfs'
-mnt_usb='mnt_usb'
+mkosi_output='mkosi.output'
+mkosi_rootfs="$mkosi_output/image"
+mkosi_cache='mkosi.cache'
+mnt_usb="$(pwd)/mnt_usb"
+
 
 EFI_UUID='3051-D434'
-BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
-ROOT_UUID='da2cf12a-9480-44cb-ba67-9371ccc88f68'
+BOOT_UUID='a1492762-3fe2-4908-a8b9-118439becd26'
+ROOT_UUID='d747cb2a-aff1-4e47-8a33-c4d9b7475df9'
 
-# uncomment to randomize the UUID's
-#EFI_UUID=$(uuidgen | tr '[a-z]' '[A-Z]' | cut -c1-8 | fold -w4 | paste -sd '-')
-#BOOT_UUID=$(uuidgen)
-#ROOT_UUID=$(uuidgen)
+[[ "$(whoami)" != 'root' ]] && echo "You must run this script as root" && exit 1
+[[ -n $SUDO_UID ]] && [[ $SUDO_UID -ne 0 ]] && echo "You must run this script as root and not with sudo" && exit 1
 
-
-if [ "$(whoami)" != 'root' ]; then
-    echo "You must be root to run this script."
-    exit 1
-fi
-
+[ ! -d $mnt_usb ] && mkdir $mnt_usb
+[ ! -d $mkosi_output ] && mkdir $mkosi_output
+[ ! -d $mkosi_cache ] && mkdir $mkosi_cache
 
 # specify the usb device with the -d argument
 while getopts :d:w arg
 do
     case "${arg}" in
         d) usb_device=${OPTARG};;
-        w) wipe=true ;;
+        w) wipe=true;;
     esac
 done
+
+shift "$((OPTIND-1))"
+
+[[ -n $usb_device ]] && [[ ! -b $usb_device ]] && echo $usb_device is not a block device && exit
 
 
 mount_usb() {
     # mounts an existing usb drive to mnt_usb/ so you can inspect the contents or chroot into it...etc
-    echo '### Mounting usb partitions'
     systemctl daemon-reload
     sleep 1
     # first try to mount the usb partitions via their uuid
@@ -43,9 +42,11 @@ mount_usb() {
         [[ -z "$(findmnt -n $mnt_usb)" ]] && mount -U $ROOT_UUID $mnt_usb
         [[ -z "$(findmnt -n $mnt_usb/boot)" ]] && mount -U $BOOT_UUID $mnt_usb/boot
         [[ -z "$(findmnt -n $mnt_usb/boot/efi)" ]] && mount -U $EFI_UUID $mnt_usb/boot/efi
+        # we need this since we're using set -e
+        return 0
     else
         # otherwise mount via the device id
-        if [ -z $usb_device ]; then
+        if [[ -z $usb_device ]]; then
             echo -e "\nthe usb device can't be mounted via the uuid values"
             echo -e "\ntherefore you must specify the usb device ie\n./build.sh -d /dev/sda mount\n"
             exit
@@ -57,10 +58,19 @@ mount_usb() {
 }
 
 umount_usb() {
-    # unmounts usb drive from mnt_usb/
-    echo '### Checking to see if usb drive is mounted'
+    # if $usb_device is specified then ensure all partitions from the drive are unmounted
+    # this is needed for new usb devices and for systems that auto-mount usb devices
+    if [[ -n $usb_device ]]; then
+        for partition in ${usb_device}?*; do
+            [[ -n "$(findmnt -n $partition)" ]] && umount $partition
+        done
+        return 0
+    fi
+
+    # umounts usb drive from mnt_usb/
+    echo '### Checking to see if usb drive is mounted to mnt_usb'
     if [ ! "$(findmnt -n $mnt_usb)" ]; then
-        return
+        return 0
     fi
 
     echo '### Unmounting usb partitions'
@@ -96,22 +106,28 @@ wipe_usb() {
 }
 
 # ./build.sh mount
-#  or
 # ./build.sh umount
-#  to mount or unmount a usb drive (that was previously created by this script) to/from mnt_usb/
+# ./build chroot
+#  to mount, unmount, or chroot into the usb drive (that was previously created by this script) to/from mnt_usb
 if [[ $1 == 'mount' ]]; then
+    echo "### Mounting to $mnt_usb"
     mount_usb
     exit
 elif [[ $1 == 'umount' ]] || [[ $1 == 'unmount' ]]; then
+    echo "### Umounting from $mnt_usb"
     umount_usb
     exit
+elif [[ $1 == 'chroot' ]]; then
+    mount_usb
+    echo "### Chrooting into $mnt_usb"
+    arch-chroot $mnt_usb
+    exit
+elif [[ -n $1 ]]; then
+    echo "$1 isn't a recogized option"
 fi
-
 
 [[ -z $usb_device ]] && echo -e "\nyou must specify a usb device ie\n./build.sh -d /dev/sda\n" && exit
 [[ ! -e $usb_device ]] && echo -e "\n$usb_device doesn't exist\n" && exit
-
-mkdir -p $mnt_usb $mkosi_rootfs
 
 
 prepare_usb_device() {
@@ -121,11 +137,13 @@ prepare_usb_device() {
     echo '### Preparing USB device'
     # create 5GB root partition
     #echo -e 'o\ny\nn\n\n\n+600M\nef00\nn\n\n\n+1G\n8300\nn\n\n\n+5G\n8300\nw\ny\n' | gdisk "$usb_device"
-    # root partition will take up all remaining space
+    # root partition will take up all remaining space\
     echo -e 'o\ny\nn\n\n\n+600M\nef00\nn\n\n\n+1G\n8300\nn\n\n\n\n8300\nw\ny\n' | gdisk $usb_device
-    mkfs.vfat -F 32 -n 'EFI-USB-ROC' -i $(echo $EFI_UUID | tr -d '-') "$usb_device"1 || mkfs.vfat -F 32 -n 'EFI-USB-ROC' -i $(echo $EFI_UUID | tr -d '-') "$usb_device"p1
-    mkfs.ext4 -O '^metadata_csum' -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"2 || mkfs.ext4 -O '^metadata_csum' -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"p2
-    mkfs.ext4 -O '^metadata_csum' -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"3 || mkfs.ext4 -O '^metadata_csum' -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"p3
+    mkfs.vfat -F 32 -n 'EFI-USB-ROC' -i $(echo $EFI_UUID | tr -d '-') "$usb_device"1 || mkfs.vfat -F 32 -n 'EFI-USB-FED' -i $(echo $EFI_UUID | tr -d '-') "$usb_device"p1
+    mkfs.ext4 -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"2 || mkfs.ext4 -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"p2
+    mkfs.ext4 -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"3 || mkfs.ext4 -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"p3
+    # reserved for future use: kernel 6.7
+    #mkfs.f2fs -U $ROOT_UUID -l 'rocky-usb-root' -f "$usb_device"3 || mkfs.f2fs -U $ROOT_UUID -l 'rocky-usb-root' -f "$usb_device"p3
     systemctl daemon-reload
 
     if [ $(blkid | grep -Ei "$EFI_UUID|$BOOT_UUID|$ROOT_UUID" | wc -l) -ne 3 ]; then
@@ -135,31 +153,30 @@ prepare_usb_device() {
 }
 
 mkosi_create_rootfs() {
-    mkdir -p mkosi.skeleton/etc/yum.repos.d
-    curl https://leifliddy.com/asahi-linux/asahi-linux.repo --output mkosi.skeleton/etc/yum.repos.d/asahi-linux.repo
+    umount_usb
     mkosi clean
-    rm -rf .mkosi*
     mkosi
 }
 
 install_usb() {
-    # if  $mnt_usb is mounted, then unmount it
-    [[ "$(findmnt -n $mnt_usb/boot/efi)" ]] && umount $mnt_usb/boot/efi
-    [[ "$(findmnt -n $mnt_usb/boot)" ]] && umount $mnt_usb/boot
-    [[ "$(findmnt -n $mnt_usb)" ]] && umount $mnt_usb
+    umount_usb
     echo '### Cleaning up'
     rm -f $mkosi_rootfs/var/cache/dnf/*
     echo '### Mounting usb partitions and copying files'
     mount -U $ROOT_UUID $mnt_usb
-    rsync -aHAX --delete --exclude '/tmp/*' --exclude '/boot/*' $mkosi_rootfs/ $mnt_usb
+    rsync -aHAX --delete --exclude '/tmp/*' --exclude '/boot/*' --exclude '/efi' $mkosi_rootfs/ $mnt_usb
     mount -U $BOOT_UUID $mnt_usb/boot
-    rsync -aHAX --delete $mkosi_rootfs/boot/ --exclude '/efi/*' $mnt_usb/boot
+    rsync -aHAX --delete $mkosi_rootfs/boot/ $mnt_usb/boot
+    # mkosi >=v18 creates the following symlink in /boot: efi -> ../efi
+    [[ -L $mnt_usb/boot/efi ]] && rm -f $mnt_usb/boot/efi && mkdir $mnt_usb/boot/efi
     mount -U $EFI_UUID $mnt_usb/boot/efi
-    rsync -aH --delete $mkosi_rootfs/boot/efi/ $mnt_usb/boot/efi
+    echo "rsync -aH $mkosi_rootfs/efi/ $mnt_usb/boot/efi"
+    rsync -aH $mkosi_rootfs/efi/ $mnt_usb/boot/efi
     echo '### Setting uuids for partitions in /etc/fstab'
     sed -i "s/EFI_UUID_PLACEHOLDER/$EFI_UUID/" $mnt_usb/etc/fstab
     sed -i "s/BOOT_UUID_PLACEHOLDER/$BOOT_UUID/" $mnt_usb/etc/fstab
     sed -i "s/ROOT_UUID_PLACEHOLDER/$ROOT_UUID/" $mnt_usb/etc/fstab
+    sed -i "s/BOOT_UUID_PLACEHOLDER/$BOOT_UUID/" $mnt_usb/boot/efi/EFI/rocky/grub.cfg
 
     echo '### Running systemd-machine-id-setup'
     # generate a machine-id
@@ -200,7 +217,9 @@ install_usb() {
     rm -f  $mnt_usb/etc/kernel/{entry-token,install.conf}
     rm -rf $mnt_usb/image.creation
     rm -f  $mnt_usb/etc/dracut.conf.d/initial-boot.conf
-    rm -f  $mnt_usb/etc/yum.repos.d/mkosi*.repo
+    # not sure how/why a $mnt_usb/root/asahi-rocky-usb directory is being created
+    # remove it like this to account for it being named something different
+    find $mnt_usb/root/ -maxdepth 1 -mindepth 1 -type d | grep -Ev '/\..*$' | xargs rm -rf
 
     echo '### Unmounting usb partitions'
     umount $mnt_usb/boot/efi
