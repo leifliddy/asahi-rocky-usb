@@ -1,25 +1,29 @@
 Creates a Rocky Linux usb drive that will boot on Apple M1/M2 systems.
 
-**Fedora package install:**  
-  
-This image was built on a Fedora system
+This image was built on a Fedora system   
 
+## Fedora Package Install
+```dnf install arch-install-scripts bubblewrap gdisk mkosi pandoc rsync systemd-container```
 
-```
-dnf install arch-install-scripts bubblewrap gdisk mkosi pandoc rsync systemd-container
-```
-**note:** ```qemu-user-static``` is only needed if building on a non-```aarch64``` system.  
-- Until version 15.x is released for Fedora, install mksoi from git:  
-`python3 -m pip install --user git+https://github.com/systemd/mkosi.git@v15.1`
+#### Notes
 
-To build a minimal Fedora image and install it to a usb drive, simply run:
+- The root password is **rocky**  
+- The ```qemu-user-static``` package is needed if building the image on a ```non-aarch64``` system  
+- This project is based on `mkosi v19` which matches the current version of `mkosi` in the `F39` repo  
+  https://src.fedoraproject.org/rpms/mkosi/  
+  However....`mkosi` is updated so quickly that it's difficult to keep up at times (I have several projects based on `mkosi`)  
+  I'll strive to keep things updated to the latest version supported in Fedora  
+  If needed, you can always install a specific version via pip  
+  `python3 -m pip install --user git+https://github.com/systemd/mkosi.git@v19`
+
+To build a minimal Rocky Linux image and install it to a usb drive, simply run:
 ```
 ./build.sh -d /dev/sda
 ```
 
 **note:** substitute ```/dev/sda``` with the device id of your usb drive
 
-If you've previously installed this Fedora image to the usb drive, you can wipe the drive and install a new image without having to repartition/reformat the drive by providing the `-w` argument
+If you've previously installed this Rocky Linux image to the usb drive, you can wipe the drive and install a new image without having to repartition/reformat the drive by providing the `-w` argument
 ```
 ./build.sh -wd /dev/sda
 ```
