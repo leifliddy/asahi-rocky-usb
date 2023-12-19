@@ -6,15 +6,18 @@ mkosi_output='mkosi.output'
 mkosi_rootfs="$mkosi_output/image"
 mkosi_cache='mkosi.cache'
 mnt_usb="$(pwd)/mnt_usb"
-
+mkosi_version_supported=19
 
 EFI_UUID='3051-D434'
-BOOT_UUID='a1492762-3fe2-4908-a8b9-118439becd26'
-ROOT_UUID='d747cb2a-aff1-4e47-8a33-c4d9b7475df9'
+BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
+ROOT_UUID='da2cf12a-9480-44cb-ba67-9371ccc88f68'
 
-if [ $USER != 'root' ] || [ $SUDO_USER != 'root' ]; then
+if [[ $USER != 'root' ]]; then
+    echo 'You must run this script as root'
+    exit
+elif [[ -n $SUDO_USER ]] && [[ $SUDO_USER != 'root' ]]; then
     echo "You must run this script as root and not with sudo"
-    exit 1
+    exit
 fi
 
 [ ! -d $mnt_usb ] && mkdir $mnt_usb
@@ -32,8 +35,23 @@ done
 
 shift "$((OPTIND-1))"
 
+[[ -z $usb_device ]] && echo "usage ./build -d [usb_device]" && exit
 [[ -n $usb_device ]] && [[ ! -b $usb_device ]] && echo $usb_device is not a block device && exit
 
+
+check_mkosi() {
+    mkosi_cmd=$(command -v mkosi || true)
+    [[ -z $mkosi_cmd ]] && echo 'mkosi is not installed...exiting' && exit
+    mkosi_version=$(mkosi --version | awk '{print $2}')
+
+    if [[ $mkosi_version -ne $mkosi_version_supported ]]; then
+        echo "mkosi path:    $mkosi_cmd"
+        echo "mkosi version: $mkosi_version"
+        echo -e "\nthis project was tested on mkosi version $mkosi_version_supported"
+        echo "please install that version to continue"
+        exit
+    fi
+}
 
 mount_usb() {
     # mounts an existing usb drive to mnt_usb/ so you can inspect the contents or chroot into it...etc
@@ -83,8 +101,9 @@ umount_usb() {
 
 wipe_usb() {
     # wipe the contents of the usb drive to avoid having to repartition it
-
     # first check if the partitions exist
+    umount_usb
+
     if [ $(blkid | grep -Ei "$EFI_UUID|$BOOT_UUID|$ROOT_UUID" | wc -l) -eq 3 ]; then
         [[ -z "$(findmnt -n $mnt_usb)" ]] && mount -U $ROOT_UUID $mnt_usb
         if [ -e $mnt_usb/boot ]; then
@@ -225,6 +244,7 @@ install_usb() {
     echo '### Done'
 }
 
+check_mkosi
 # if -w argument is specified
 # ie
 # ./build.sh -wd /dev/sda
