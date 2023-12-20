@@ -6,7 +6,7 @@ mkosi_output='mkosi.output'
 mkosi_rootfs="$mkosi_output/image"
 mkosi_cache='mkosi.cache'
 mnt_usb="$(pwd)/mnt_usb"
-mkosi_version_supported=19
+mkosi_supported_version=19
 
 EFI_UUID='3051-D434'
 BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
@@ -44,10 +44,10 @@ check_mkosi() {
     [[ -z $mkosi_cmd ]] && echo 'mkosi is not installed...exiting' && exit
     mkosi_version=$(mkosi --version | awk '{print $2}')
 
-    if [[ $mkosi_version -ne $mkosi_version_supported ]]; then
+    if [[ $mkosi_version -ne $mkosi_supported_version ]]; then
         echo "mkosi path:    $mkosi_cmd"
         echo "mkosi version: $mkosi_version"
-        echo -e "\nthis project was tested on mkosi version $mkosi_version_supported"
+        echo -e "\nthis project was built with mkosi version $mkosi_supported_version"
         echo "please install that version to continue"
         exit
     fi
