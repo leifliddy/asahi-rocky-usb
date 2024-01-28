@@ -185,7 +185,8 @@ install_usb() {
     mount -U $ROOT_UUID $mnt_usb
     rsync -aHAX --delete --exclude '/tmp/*' --exclude '/boot/*' --exclude '/efi' $mkosi_rootfs/ $mnt_usb
     mount -U $BOOT_UUID $mnt_usb/boot
-    rsync -aHAX --delete $mkosi_rootfs/boot/ $mnt_usb/boot
+    echo "rsync -aHAX --exclude '/efi/*' $mkosi_rootfs/boot/ $mnt_usb/boot"
+    rsync -aHAX --exclude '/efi/*' $mkosi_rootfs/boot/ $mnt_usb/boot
     mount -U $EFI_UUID $mnt_usb/boot/efi
     echo "rsync -aH $mkosi_rootfs/boot/efi/ $mnt_usb/boot/efi"
     rsync -aH $mkosi_rootfs/boot/efi/ $mnt_usb/boot/efi
