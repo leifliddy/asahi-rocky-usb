@@ -8,7 +8,7 @@ mkosi_cache='mkosi.cache'
 mnt_usb="$(pwd)/mnt_usb"
 mkosi_supported_version=20
 
-EFI_UUID='3051-D434'
+EFI_UUID='8420-6DC5'
 BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
 ROOT_UUID='da2cf12a-9480-44cb-ba67-9371ccc88f68'
 
