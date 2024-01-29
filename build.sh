@@ -12,8 +12,8 @@ EFI_UUID='3051-D434'
 BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
 ROOT_UUID='da2cf12a-9480-44cb-ba67-9371ccc88f68'
 
-if [[ $USER != 'root' ]]; then
-    echo 'You must run this script as root'
+if [ "$(whoami)" != 'root' ]; then
+    echo "You must be root to run this script"
     exit
 elif [[ -n $SUDO_USER ]] && [[ $SUDO_USER != 'root' ]]; then
     echo "You must run this script as root and not with sudo"
