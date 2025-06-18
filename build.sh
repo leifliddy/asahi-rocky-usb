@@ -6,7 +6,7 @@ mkosi_output='mkosi.output'
 mkosi_rootfs="$mkosi_output/image"
 mkosi_cache='mkosi.cache'
 mnt_usb="$(pwd)/mnt_usb"
-mkosi_supported_version=20
+mkosi_supported_version=23
 
 EFI_UUID='8420-6DC5'
 BOOT_UUID='ad21405c-14ec-41fd-b171-73cd83f149cb'
@@ -42,11 +42,11 @@ check_mkosi() {
     [[ -z $mkosi_cmd ]] && echo 'mkosi is not installed...exiting' && exit
     mkosi_version=$(mkosi --version | awk '{print $2}' | sed 's/\..*$//')
 
-    if [[ $mkosi_version -ne $mkosi_supported_version ]]; then
+    if [[ $mkosi_version -gt $mkosi_max_supported_version ]]; then
         echo "mkosi path:    $mkosi_cmd"
         echo "mkosi version: $mkosi_version"
-        echo -e "\nthis project was built with mkosi version $mkosi_supported_version"
-        echo "please install that version to continue"
+        echo -e "\nOnly mkosi version $mkosi_max_supported_version and below are supported"
+        echo "please install a compatible version to continue"
         exit
     fi
 }
@@ -159,8 +159,14 @@ prepare_usb_device() {
     # root partition will take up all remaining space\
     echo -e 'o\ny\nn\n\n\n+600M\nef00\nn\n\n\n+1G\n8300\nn\n\n\n\n8300\nw\ny\n' | gdisk $usb_device
     mkfs.vfat -F 32 -n 'EFI-USB-ROC' -i $(echo $EFI_UUID | tr -d '-') "$usb_device"1 || mkfs.vfat -F 32 -n 'EFI-USB-FED' -i $(echo $EFI_UUID | tr -d '-') "$usb_device"p1
-    mkfs.ext4 -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"2 || mkfs.ext4 -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"p2
-    mkfs.ext4 -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"3 || mkfs.ext4 -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"p3
+
+    #remove the orphan_file mount option to avoid this error:
+
+    # /dev/sda3 has unsupported feature(s): FEATURE_C12
+    # e2fsck: Get a newer version of e2fsck!
+
+    mkfs.ext4 -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"2 -O ^orphan_file || mkfs.ext4 -U $BOOT_UUID -L 'rocky-usb-boot' -F "$usb_device"p2 -O ^orphan_file
+    mkfs.ext4 -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"3 -O ^orphan_file || mkfs.ext4 -U $ROOT_UUID -L 'rocky-usb-root' -F "$usb_device"p3 -O ^orphan_file
     # reserved for future use: kernel 6.7
     #mkfs.f2fs -U $ROOT_UUID -l 'rocky-usb-root' -f "$usb_device"3 || mkfs.f2fs -U $ROOT_UUID -l 'rocky-usb-root' -f "$usb_device"p3
     systemctl daemon-reload
@@ -202,9 +208,16 @@ install_usb() {
     chroot $mnt_usb systemd-machine-id-setup
     chroot $mnt_usb echo "KERNEL_INSTALL_MACHINE_ID=$(cat /etc/machine-id)" > /etc/machine-info
 
+    # populate /etc/kernel/cmdline with the correct root uuid
+    # otherwise the uuid from the host system is used in the BLS entry
+    rm -f $mnt_usb/etc/kernel/cmdline
+
+    echo "rm -f $mnt_usb/etc/kernel/cmdline"
+    echo "root=UUID=$ROOT_UUID ro > $mnt_usb/etc/kernel/cmdline"
+    echo "root=UUID=$ROOT_UUID ro" > $mnt_usb/etc/kernel/cmdline
+
     echo "### Creating BLS (/boot/loader/entries/) entry"
     arch-chroot $mnt_usb grub2-editenv create
-    rm -f $mnt_usb/etc/kernel/cmdline
     arch-chroot $mnt_usb /image.creation/create.bls.entry
 
     echo -e '\n### Generating GRUB config'
@@ -218,9 +231,11 @@ install_usb() {
     echo "### Disabling systemd-firstboot"
     chroot $mnt_usb rm -f /usr/lib/systemd/system/sysinit.target.wants/systemd-firstboot.service
 
-    echo "### SElinux labeling filesystem"
-    arch-chroot $mnt_usb setfiles -F -p -c /etc/selinux/targeted/policy/policy.* -e /proc -e /sys -e /dev /etc/selinux/targeted/contexts/files/file_contexts /
-    arch-chroot $mnt_usb setfiles -F -p -c /etc/selinux/targeted/policy/policy.* -e /proc -e /sys -e /dev /etc/selinux/targeted/contexts/files/file_contexts /boot
+ echo "### SElinux labeling filesystem"
+    policy=$(ls -tr  $mnt_usb/etc/selinux/targeted/policy/ | tail -1)
+
+    arch-chroot $mnt_usb setfiles -F -p -c /etc/selinux/targeted/policy/$policy -e /proc -e /sys -e /dev /etc/selinux/targeted/contexts/files/file_contexts /
+    arch-chroot $mnt_usb setfiles -F -p -c /etc/selinux/targeted/policy/$policy -e /proc -e /sys -e /dev /etc/selinux/targeted/contexts/files/file_contexts /boot
 
     ###### post-install cleanup ######
     echo -e '\n### Cleanup'
