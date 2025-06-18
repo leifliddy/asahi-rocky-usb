@@ -1,6 +1,9 @@
 Creates a **Rocky Linux** usb drive that will boot on Apple M-series systems
 
-This image was built on a Fedora system   
+<img src="https://github.com/user-attachments/assets/28226523-a443-483f-8cb5-753208ff2fb3" width=65%> 
+
+
+**This image was built on a Fedora aarch64 system   
 
 **Fedora Package Install**  
 ```dnf install arch-install-scripts bubblewrap gdisk mkosi pandoc rsync systemd-container```
@@ -9,12 +12,8 @@ This image was built on a Fedora system
 
 - The root password is **rocky**  
 - The ```qemu-user-static``` package is needed if building the image on a ```non-aarch64``` system  
-- This project is based on `mkosi v20` which matches the current version of `mkosi` in the `F39` repo  
-  https://src.fedoraproject.org/rpms/mkosi/  
-  However....`mkosi` is updated so quickly that it's difficult to keep up at times (I have several projects based on `mkosi`)  
-  I'll strive to keep things updated to the latest version supported in Fedora  
-  If needed, you can always install a specific version via pip  
-  `python3 -m pip install --user git+https://github.com/systemd/mkosi.git@v20`
+-This project will work with mkosi versions less then or equal to mkosi v23 If needed, you can always install a specific version via pip
+python3 -m pip install --user git+https://github.com/systemd/mkosi.git@v23
 
 To build a minimal Rocky Linux image and install it to a usb drive, simply run:
 ```
@@ -36,20 +35,14 @@ Once the drive is created, you can locally mount, unmount, or chroot into the us
 ```
 **note:** mounting the usb drive is useful for inspecting the contents of the drive or making changes to it
 
-To boot the usb drive on an apple silicon system, you could either:
-1. Enter the following ```u-boot``` commands at boot time:
+To boot the usb drive on an apple silicon system:
+
+Boot to Asahi Linux on the internal drive and add the usb drive to the grub menu  
 ```
-env set boot_efi_bootmgr
-run usb_boot
-```
-2. Add the usb drive to the grub menu on the internal drive  
-You just need to boot Linux on the **internal drive**, plugin the usb drive, and then update grub
-```
-[root@m1 ~]# grub2-mkconfig -o /boot/grub2/grub.cfg
+[root@m1 ~]# grub2-mkconfig -o /boot/grub2/grub.cfg 
 Generating grub configuration file ...
-Found Fedora Linux Asahi Remix 39 (Thirty Nine) on /dev/nvme0n1p6
-Found Rocky Linux 9.3 (Blue Onyx) on /dev/sda3
-done
+Found Fedora Linux Asahi Remix 42 (Forty Two [Adams]) on /dev/nvme0n1p7
+Found Rocky Linux 9.6 (Blue Onyx) on /dev/sda3
 ```
 You should now see the `/dev/sda3` entry in the main grub menu  
 If you don't see the grub menu at all or if the text is garbled, then ensure these options are set in `/etc/default/grub`
