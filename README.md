@@ -1,6 +1,6 @@
 Creates a **Rocky Linux** usb drive that will boot on Apple M-series systems
 
-<img src="https://github.com/user-attachments/assets/28226523-a443-483f-8cb5-753208ff2fb3" width=65%> 
+<img src="https://github.com/user-attachments/assets/bfc7285c-de6b-4860-9f44-81bb0ccd4657" width=65%> 
 
 
 **This image was built on a Fedora aarch64 system   
